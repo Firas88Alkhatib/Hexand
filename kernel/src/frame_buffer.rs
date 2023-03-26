@@ -1,16 +1,16 @@
 use bootloader_api::info::{FrameBufferInfo, PixelFormat};
+use conquer_once::spin::OnceCell;
 use core::{fmt, ptr};
 use spinning_top::{lock_api::Mutex, RawSpinlock, Spinlock};
-use conquer_once::spin::OnceCell;
 
 // supoort only psf1 currently
 // refer to https://en.wikipedia.org/wiki/PC_Screen_Font
 const FONT: &'static [u8] = include_bytes!("fonts/Uni2-Fixed16.psf");
-const HEADER_SIZE: usize= FONT[1] as usize;
+const HEADER_SIZE: usize = FONT[1] as usize;
 const FONT_HEADER: &[u8] = &FONT[0..HEADER_SIZE];
-const CHAR_SIZE:usize = FONT_HEADER[3] as usize;
+const CHAR_SIZE: usize = FONT_HEADER[3] as usize;
 const CHARS_DATA: &[u8] = &FONT[HEADER_SIZE..512 * CHAR_SIZE];
-const UNICODE_TABLE:&[u8] = &FONT[HEADER_SIZE + CHARS_DATA.len()..];
+const UNICODE_TABLE: &[u8] = &FONT[HEADER_SIZE + CHARS_DATA.len()..];
 const CHAR_HEIGHT: usize = CHAR_SIZE;
 const CHAR_WIDTH: usize = 8 as usize; // in psf 1 the width is always 8
 
@@ -19,12 +19,10 @@ const LETTER_SPACING: usize = 1;
 const SCREEN_PADDING: usize = 5;
 const BACKUP_CHAR: char = '?';
 
-mod color {
-    pub const R: u8 = 203;
-    pub const G: u8 = 58;
-    pub const B: u8 = 55;
-    pub const A: u8 = 0; // this doesn't work for now for some reason
-}
+const IMG: &'static [u8] = include_bytes!("./images/forest.bmp");
+
+
+pub struct Color {r:u8,g:u8,b:u8,a:u8}
 
 pub struct FrameBufferWriter {
     framebuffer: &'static mut [u8],
@@ -94,12 +92,12 @@ impl FrameBufferWriter {
             None
         }
     }
-    pub fn write_pixel(&mut self, x: usize, y: usize) {
+    pub fn write_pixel(&mut self, x: usize, y: usize,color:Color) {
         let pixel_offset = y * self.info.stride + x;
 
-       let color =  match self.info.pixel_format {
-            PixelFormat::Rgb => [color::R, color::G, color::B, color::A],
-            PixelFormat::Bgr => [color::B, color::G, color::R, color::A],
+        let color = match self.info.pixel_format {
+            PixelFormat::Rgb => [color.r, color.g, color.b, color.a],
+            PixelFormat::Bgr => [color.b, color.g, color.r, color.a],
             other => {
                 // set a supported (but invalid) pixel format before panicking to avoid a double
                 // panic; it might not be readable though
@@ -109,7 +107,8 @@ impl FrameBufferWriter {
         };
         let bytes_per_pixel = self.info.bytes_per_pixel;
         let byte_offset = pixel_offset * bytes_per_pixel;
-        self.framebuffer[byte_offset..(byte_offset + bytes_per_pixel)].copy_from_slice(&color[..bytes_per_pixel]);
+        self.framebuffer[byte_offset..(byte_offset + bytes_per_pixel)]
+            .copy_from_slice(&color[..bytes_per_pixel]);
         let _ = unsafe { ptr::read_volatile(&self.framebuffer[byte_offset]) };
     }
     fn render_char(&mut self, char: char) {
@@ -121,7 +120,7 @@ impl FrameBufferWriter {
                 let index = row * CHAR_WIDTH + col;
                 let bit = glyph[index / 8] & (1 << (7 - (index % 8)));
                 if bit != 0 {
-                    self.write_pixel(self.x_pos + col, self.y_pos + row);
+                    self.write_pixel(self.x_pos + col, self.y_pos + row,Color{r:203,g:58,b:55,a:0});
                 }
             }
         }
@@ -145,7 +144,24 @@ impl FrameBufferWriter {
             }
         }
     }
-   
+    fn image(&mut self){
+        let bpm_pixeldata_offset: usize = 54;
+        let bytes_per_pixel: usize = 3;
+        let pixel_data = &IMG[bpm_pixeldata_offset..];
+        let width = 1000;
+        let height = 667;
+
+
+        for y in 0..height {
+            for x in 0..width {
+                let index = ((height - y - 1) * width + x) as usize * bytes_per_pixel;
+                let b = pixel_data[index];
+                let g = pixel_data[index + 1];
+                let r = pixel_data[index + 2];
+                self.write_pixel(x as usize, y as usize, Color{r,g,b,a:0});
+            }
+        }
+    }
 }
 
 unsafe impl Send for FrameBufferWriter {}
@@ -161,7 +177,10 @@ impl fmt::Write for FrameBufferWriter {
 }
 pub static WRITER: OnceCell<Spinlock<FrameBufferWriter>> = OnceCell::uninit();
 
-pub fn init(framebuffer: &'static mut [u8], info: FrameBufferInfo) -> &Mutex<RawSpinlock, FrameBufferWriter> {
+pub fn init(
+    framebuffer: &'static mut [u8],
+    info: FrameBufferInfo,
+) -> &Mutex<RawSpinlock, FrameBufferWriter> {
     WRITER.get_or_init(move || Spinlock::new(FrameBufferWriter::new(framebuffer, info)))
 }
 
@@ -180,4 +199,8 @@ macro_rules! println {
 pub fn _print(args: fmt::Arguments) {
     use core::fmt::Write;
     WRITER.try_get().unwrap().lock().write_fmt(args).unwrap();
+}
+
+pub fn image() {
+    WRITER.try_get().unwrap().lock().image();
 }
