@@ -8,14 +8,14 @@ authors = ["Firas Alkhtib <firas88alkhatib@gmail.com>"]
 bootloader_api = "0.11"
 spinning_top = "0.2.4"
 conquer-once = { version = "0.3.2", default-features = false }
+x86_64 = "0.14.10"
 # uart_16550 = "0.2.18"
 # log = "0.4.17"
 # acpi = "4.1.1"
-# x86_64 = "0.14.10"
 # linked_list_allocator = "0.10.5"
 # bit_field = "0.10.1"
 # volatile = "0.4.1"
 
-# [dependencies.lazy_static]
-# version = "1.4.0"
-# features = ["spin_no_std"]
+[dependencies.lazy_static]
+version = "1.4.0"
+features = ["spin_no_std"]

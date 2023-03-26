@@ -5,11 +5,15 @@
 #![reexport_test_harness_main = "test_main"]
 #![feature(const_trait_impl)]
 #![feature(const_slice_index)]
+#![feature(abi_x86_interrupt)]
 
 use core::panic::PanicInfo;
 use bootloader_api::{entry_point, BootInfo};
 
+#[macro_use]
 mod frame_buffer;
+mod interrupts;
+mod gdt;
 
 entry_point!(start);
 
@@ -17,14 +21,31 @@ fn start(boot_info: &'static mut BootInfo) -> ! {
     let info = boot_info.framebuffer.as_ref().unwrap().info();
     let framebuffer = boot_info.framebuffer.as_mut().unwrap().buffer_mut();
     frame_buffer::init(framebuffer, info);
+    println!("Frame buffer initialized.");
+    gdt::init();
+    println!("Global Descriptor Table initialized.");
+    interrupts::init_idt();
+    println!("Interrupts initialized.");
+    println!("-----------------------------------------------");
+    // frame_buffer::image();
+    // x86_64::instructions::interrupts::int3();
+      // trigger a page fault
+      fn stack_overflow() {
+        stack_overflow(); // for each recursion, the return address is pushed
+    }
 
-    println!("Hello World");
+    // trigger a stack overflow
+    stack_overflow();
+
+
+    println!("Checkpoint continue!");
     loop {}
 }
 
 
 #[panic_handler]
-fn panic(_info: &PanicInfo) -> ! {
+fn panic(info: &PanicInfo) -> ! {
+    println!("{}", info);
     loop {}
 }
 

@@ -21,8 +21,12 @@ const BACKUP_CHAR: char = '?';
 
 const IMG: &'static [u8] = include_bytes!("./images/forest.bmp");
 
-
-pub struct Color {r:u8,g:u8,b:u8,a:u8}
+pub struct Color {
+    r: u8,
+    g: u8,
+    b: u8,
+    a: u8,
+}
 
 pub struct FrameBufferWriter {
     framebuffer: &'static mut [u8],
@@ -92,7 +96,7 @@ impl FrameBufferWriter {
             None
         }
     }
-    pub fn write_pixel(&mut self, x: usize, y: usize,color:Color) {
+    pub fn write_pixel(&mut self, x: usize, y: usize, color: Color) {
         let pixel_offset = y * self.info.stride + x;
 
         let color = match self.info.pixel_format {
@@ -107,8 +111,7 @@ impl FrameBufferWriter {
         };
         let bytes_per_pixel = self.info.bytes_per_pixel;
         let byte_offset = pixel_offset * bytes_per_pixel;
-        self.framebuffer[byte_offset..(byte_offset + bytes_per_pixel)]
-            .copy_from_slice(&color[..bytes_per_pixel]);
+        self.framebuffer[byte_offset..(byte_offset + bytes_per_pixel)].copy_from_slice(&color[..bytes_per_pixel]);
         let _ = unsafe { ptr::read_volatile(&self.framebuffer[byte_offset]) };
     }
     fn render_char(&mut self, char: char) {
@@ -120,7 +123,16 @@ impl FrameBufferWriter {
                 let index = row * CHAR_WIDTH + col;
                 let bit = glyph[index / 8] & (1 << (7 - (index % 8)));
                 if bit != 0 {
-                    self.write_pixel(self.x_pos + col, self.y_pos + row,Color{r:203,g:58,b:55,a:0});
+                    self.write_pixel(
+                        self.x_pos + col,
+                        self.y_pos + row,
+                        Color {
+                            r: 203,
+                            g: 58,
+                            b: 55,
+                            a: 0,
+                        },
+                    );
                 }
             }
         }
@@ -144,13 +156,12 @@ impl FrameBufferWriter {
             }
         }
     }
-    fn image(&mut self){
+    fn image(&mut self) {
         let bpm_pixeldata_offset: usize = 54;
         let bytes_per_pixel: usize = 3;
         let pixel_data = &IMG[bpm_pixeldata_offset..];
         let width = 1000;
         let height = 667;
-
 
         for y in 0..height {
             for x in 0..width {
@@ -158,7 +169,7 @@ impl FrameBufferWriter {
                 let b = pixel_data[index];
                 let g = pixel_data[index + 1];
                 let r = pixel_data[index + 2];
-                self.write_pixel(x as usize, y as usize, Color{r,g,b,a:0});
+                self.write_pixel(x as usize, y as usize, Color { r, g, b, a: 0 });
             }
         }
     }
@@ -177,10 +188,7 @@ impl fmt::Write for FrameBufferWriter {
 }
 pub static WRITER: OnceCell<Spinlock<FrameBufferWriter>> = OnceCell::uninit();
 
-pub fn init(
-    framebuffer: &'static mut [u8],
-    info: FrameBufferInfo,
-) -> &Mutex<RawSpinlock, FrameBufferWriter> {
+pub fn init(framebuffer: &'static mut [u8], info: FrameBufferInfo) -> &Mutex<RawSpinlock, FrameBufferWriter> {
     WRITER.get_or_init(move || Spinlock::new(FrameBufferWriter::new(framebuffer, info)))
 }
 
