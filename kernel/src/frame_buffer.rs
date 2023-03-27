@@ -1,7 +1,7 @@
-use bootloader_api::info::{FrameBufferInfo, PixelFormat};
+use bootloader_api::info::{ FrameBufferInfo, PixelFormat };
 use conquer_once::spin::OnceCell;
-use core::{fmt, ptr};
-use spinning_top::{lock_api::Mutex, RawSpinlock, Spinlock};
+use core::{ fmt, ptr };
+use spinning_top::{ lock_api::Mutex, RawSpinlock, Spinlock };
 
 // supoort only psf1 currently
 // refer to https://en.wikipedia.org/wiki/PC_Screen_Font
@@ -27,6 +27,10 @@ pub struct Color {
     b: u8,
     a: u8,
 }
+// r: 203, g: 58, b: 55, a: 0   // red
+// rgb(43, 116, 201)
+// r: 73, g: 136, b: 221, a: 0 // bright blue nice!
+const COLOR: Color = Color { r: 243, g: 98, b: 95, a: 0};
 
 pub struct FrameBufferWriter {
     framebuffer: &'static mut [u8],
@@ -79,9 +83,9 @@ impl FrameBufferWriter {
         // which could be for example the char 'A' depending on the font.
         for i in 0..UNICODE_TABLE.len() / 2 {
             let value = u16::from_le_bytes([UNICODE_TABLE[i * 2], UNICODE_TABLE[i * 2 + 1]]);
-            if value == 0xFFFF {
+            if value == 0xffff {
                 code_index += 1;
-            } else if value == char as u16 {
+            } else if value == (char as u16) {
                 return Some(code_index * CHAR_SIZE);
             }
         }
@@ -111,28 +115,17 @@ impl FrameBufferWriter {
         };
         let bytes_per_pixel = self.info.bytes_per_pixel;
         let byte_offset = pixel_offset * bytes_per_pixel;
-        self.framebuffer[byte_offset..(byte_offset + bytes_per_pixel)].copy_from_slice(&color[..bytes_per_pixel]);
+        self.framebuffer[byte_offset..byte_offset + bytes_per_pixel].copy_from_slice(&color[..bytes_per_pixel]);
         let _ = unsafe { ptr::read_volatile(&self.framebuffer[byte_offset]) };
     }
     fn render_char(&mut self, char: char) {
-        let glyph = self
-            .get_glyph_data(char)
-            .unwrap_or_else(|| self.get_glyph_data(BACKUP_CHAR).unwrap());
+        let glyph = self.get_glyph_data(char).unwrap_or_else(|| self.get_glyph_data(BACKUP_CHAR).unwrap());
         for row in 0..CHAR_HEIGHT {
             for col in 0..CHAR_WIDTH {
                 let index = row * CHAR_WIDTH + col;
                 let bit = glyph[index / 8] & (1 << (7 - (index % 8)));
                 if bit != 0 {
-                    self.write_pixel(
-                        self.x_pos + col,
-                        self.y_pos + row,
-                        Color {
-                            r: 203,
-                            g: 58,
-                            b: 55,
-                            a: 0,
-                        },
-                    );
+                    self.write_pixel(self.x_pos + col, self.y_pos + row, COLOR);
                 }
             }
         }

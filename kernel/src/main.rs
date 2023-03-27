@@ -8,22 +8,30 @@
 #![feature(abi_x86_interrupt)]
 
 use core::panic::PanicInfo;
-use bootloader_api::{entry_point, BootInfo};
+use bootloader_api::{ entry_point, BootInfo, BootloaderConfig, config::Mapping };
 
 #[macro_use]
 mod frame_buffer;
 mod interrupts;
 mod gdt;
+mod memory;
 // mod acpi;
 
-entry_point!(start);
+pub static BOOTLOADER_CONFIG: BootloaderConfig = {
+    let mut config = BootloaderConfig::new_default();
+    config.mappings.physical_memory = Some(Mapping::Dynamic);
+    config
+};
+
+entry_point!(start, config = &BOOTLOADER_CONFIG);
 
 fn start(boot_info: &'static mut BootInfo) -> ! {
     // let rsdp_addr = boot_info.rsdp_addr.into_option().unwrap();
     let framebuffer_info = boot_info.framebuffer.as_ref().unwrap().info();
     let framebuffer = boot_info.framebuffer.as_mut().unwrap().buffer_mut();
+    let physical_memory_offset = boot_info.physical_memory_offset.into_option().unwrap();
     frame_buffer::init(framebuffer, framebuffer_info);
-    println!("Frame buffer initialized.");
+    println!("Frame buffer initialized.");    
     // acpi::init(rsdp_addr);
     // println!("Advanced Configuration and Power Interface (ACIP) initialized.");
     gdt::init();
@@ -31,29 +39,19 @@ fn start(boot_info: &'static mut BootInfo) -> ! {
     interrupts::init_idt();
     println!("Interrupts initialized.");
     println!("-----------------------------------------------");
-    // frame_buffer::image();
-    // x86_64::instructions::interrupts::int3();
-      // trigger a page fault
-    //   fn stack_overflow() {
-    //     stack_overflow(); // for each recursion, the return address is pushed
-    // }
-
-    // // trigger a stack overflow
-    // stack_overflow();
-
 
     println!("Checkpoint continue!");
-    loop {}
+    loop {
+        interrupts::hlt_loop();
+    }
 }
-
 
 #[panic_handler]
 fn panic(info: &PanicInfo) -> ! {
     println!("{}", info);
-    loop {}
+    loop {
+    }
 }
 
 #[cfg(test)]
-fn test_runner(tests: &[&dyn Fn()]) {
-   
-}
+fn test_runner(tests: &[&dyn Fn()]) {}
