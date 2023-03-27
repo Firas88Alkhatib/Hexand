@@ -19,7 +19,7 @@ const LETTER_SPACING: usize = 1;
 const SCREEN_PADDING: usize = 5;
 const BACKUP_CHAR: char = '?';
 
-const IMG: &'static [u8] = include_bytes!("./images/forest.bmp");
+// const IMG: &'static [u8] = include_bytes!("./images/forest.bmp");
 
 pub struct Color {
     r: u8,
@@ -156,23 +156,23 @@ impl FrameBufferWriter {
             }
         }
     }
-    fn image(&mut self) {
-        let bpm_pixeldata_offset: usize = 54;
-        let bytes_per_pixel: usize = 3;
-        let pixel_data = &IMG[bpm_pixeldata_offset..];
-        let width = 1000;
-        let height = 667;
+    // fn image(&mut self) {
+    //     let bpm_pixeldata_offset: usize = 54;
+    //     let bytes_per_pixel: usize = 3;
+    //     let pixel_data = &IMG[bpm_pixeldata_offset..];
+    //     let width = 1000;
+    //     let height = 667;
 
-        for y in 0..height {
-            for x in 0..width {
-                let index = ((height - y - 1) * width + x) as usize * bytes_per_pixel;
-                let b = pixel_data[index];
-                let g = pixel_data[index + 1];
-                let r = pixel_data[index + 2];
-                self.write_pixel(x as usize, y as usize, Color { r, g, b, a: 0 });
-            }
-        }
-    }
+    //     for y in 0..height {
+    //         for x in 0..width {
+    //             let index = ((height - y - 1) * width + x) as usize * bytes_per_pixel;
+    //             let b = pixel_data[index];
+    //             let g = pixel_data[index + 1];
+    //             let r = pixel_data[index + 2];
+    //             self.write_pixel(x as usize, y as usize, Color { r, g, b, a: 0 });
+    //         }
+    //     }
+    // }
 }
 
 unsafe impl Send for FrameBufferWriter {}
@@ -209,6 +209,6 @@ pub fn _print(args: fmt::Arguments) {
     WRITER.try_get().unwrap().lock().write_fmt(args).unwrap();
 }
 
-pub fn image() {
-    WRITER.try_get().unwrap().lock().image();
-}
+// pub fn image() {
+//     WRITER.try_get().unwrap().lock().image();
+// }

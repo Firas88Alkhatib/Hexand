@@ -14,14 +14,18 @@ use bootloader_api::{entry_point, BootInfo};
 mod frame_buffer;
 mod interrupts;
 mod gdt;
+// mod acpi;
 
 entry_point!(start);
 
 fn start(boot_info: &'static mut BootInfo) -> ! {
-    let info = boot_info.framebuffer.as_ref().unwrap().info();
+    // let rsdp_addr = boot_info.rsdp_addr.into_option().unwrap();
+    let framebuffer_info = boot_info.framebuffer.as_ref().unwrap().info();
     let framebuffer = boot_info.framebuffer.as_mut().unwrap().buffer_mut();
-    frame_buffer::init(framebuffer, info);
+    frame_buffer::init(framebuffer, framebuffer_info);
     println!("Frame buffer initialized.");
+    // acpi::init(rsdp_addr);
+    // println!("Advanced Configuration and Power Interface (ACIP) initialized.");
     gdt::init();
     println!("Global Descriptor Table initialized.");
     interrupts::init_idt();
@@ -30,12 +34,12 @@ fn start(boot_info: &'static mut BootInfo) -> ! {
     // frame_buffer::image();
     // x86_64::instructions::interrupts::int3();
       // trigger a page fault
-      fn stack_overflow() {
-        stack_overflow(); // for each recursion, the return address is pushed
-    }
+    //   fn stack_overflow() {
+    //     stack_overflow(); // for each recursion, the return address is pushed
+    // }
 
-    // trigger a stack overflow
-    stack_overflow();
+    // // trigger a stack overflow
+    // stack_overflow();
 
 
     println!("Checkpoint continue!");
