@@ -14,7 +14,7 @@ const UNICODE_TABLE: &[u8] = &FONT[HEADER_SIZE + CHARS_DATA.len()..];
 const CHAR_HEIGHT: usize = CHAR_SIZE;
 const CHAR_WIDTH: usize = 8 as usize; // in psf 1 the width is always 8
 
-const LINE_SPACING: usize = 3;
+const LINE_SPACING: usize = 5;
 const LETTER_SPACING: usize = 1;
 const SCREEN_PADDING: usize = 5;
 const BACKUP_CHAR: char = '?';
@@ -30,7 +30,7 @@ pub struct Color {
 // r: 203, g: 58, b: 55, a: 0   // red
 // rgb(43, 116, 201)
 // r: 73, g: 136, b: 221, a: 0 // bright blue nice!
-const COLOR: Color = Color { r: 243, g: 98, b: 95, a: 0};
+const COLOR: Color = Color { r: 243, g: 98, b: 95, a: 0 };
 
 pub struct FrameBufferWriter {
     framebuffer: &'static mut [u8],
@@ -58,7 +58,11 @@ impl FrameBufferWriter {
         self.info.height
     }
     fn newline(&mut self) {
-        self.y_pos += CHAR_HEIGHT + LINE_SPACING;
+        if self.y_pos + CHAR_HEIGHT + SCREEN_PADDING > self.height() {
+            self.shift();
+        } else {
+            self.y_pos += CHAR_HEIGHT + LINE_SPACING;
+        }
         self.carriage_return()
     }
 
@@ -132,18 +136,30 @@ impl FrameBufferWriter {
 
         self.x_pos += 8 + LETTER_SPACING;
     }
+    fn shift(&mut self) {
+        let line_size = self.width() * ( CHAR_HEIGHT + LINE_SPACING )  * self.info.bytes_per_pixel;
+        let buffer_length = self.framebuffer.len();
+        let copy_size = buffer_length - line_size;
+        unsafe {
+            let src_pts = self.framebuffer.as_mut_ptr().add(line_size);
+            let dest_pts = self.framebuffer.as_mut_ptr();
+            core::ptr::copy(src_pts, dest_pts, copy_size);
+        }
+        self.framebuffer[buffer_length - line_size..].fill(0);
+        self.y_pos -= CHAR_HEIGHT + LINE_SPACING;
+    }
     fn write_char(&mut self, char: char) {
         match char {
             '\n' => self.newline(),
             '\r' => self.carriage_return(),
             char => {
                 let new_xpos = self.x_pos + CHAR_WIDTH;
+                let new_ypos = self.y_pos + CHAR_HEIGHT + LINE_SPACING;
                 if new_xpos >= self.width() {
                     self.newline();
                 }
-                let new_ypos = self.y_pos + CHAR_HEIGHT + SCREEN_PADDING;
                 if new_ypos >= self.height() {
-                    self.clear();
+                    self.shift();
                 }
                 self.render_char(char);
             }
