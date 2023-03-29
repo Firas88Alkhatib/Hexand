@@ -1,7 +1,8 @@
 use x86_64::{ VirtAddr, PhysAddr };
-use x86_64::structures::paging::{ PageTable, Page, PhysFrame, Mapper, Size4KiB, FrameAllocator, OffsetPageTable };
+use x86_64::structures::paging::{ PageTable, PhysFrame, Size4KiB, FrameAllocator, OffsetPageTable };
+use x86_64::registers::control::Cr3;
 
-use bootloader_api::info::{ MemoryRegions, MemoryRegion, MemoryRegionKind };
+use bootloader_api::info::{ MemoryRegions, MemoryRegionKind };
 
 pub unsafe fn init(physical_memory_offset: VirtAddr) -> OffsetPageTable<'static> {
     let level_4_table = active_level_4_table(physical_memory_offset);
@@ -9,8 +10,6 @@ pub unsafe fn init(physical_memory_offset: VirtAddr) -> OffsetPageTable<'static>
 }
 
 unsafe fn active_level_4_table(physical_memory_offset: VirtAddr) -> &'static mut PageTable {
-    use x86_64::registers::control::Cr3;
-
     let (level_4_table_frame, _) = Cr3::read();
 
     let phys = level_4_table_frame.start_address();
@@ -20,7 +19,7 @@ unsafe fn active_level_4_table(physical_memory_offset: VirtAddr) -> &'static mut
     &mut *page_table_ptr
 }
 
-unsafe impl FrameAllocator<Size4KiB> for BootInfoFrameAllocator  {
+unsafe impl FrameAllocator<Size4KiB> for BootInfoFrameAllocator {
     fn allocate_frame(&mut self) -> Option<PhysFrame> {
         let frame = self.usable_frames().nth(self.next);
         self.next += 1;

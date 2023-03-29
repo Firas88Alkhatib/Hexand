@@ -3,18 +3,24 @@
 #![feature(custom_test_frameworks)]
 #![test_runner(crate::test_runner)]
 #![reexport_test_harness_main = "test_main"]
+#![feature(alloc_error_handler)]
 #![feature(const_trait_impl)]
 #![feature(const_slice_index)]
 #![feature(abi_x86_interrupt)]
 
 use core::panic::PanicInfo;
-use bootloader_api::{ entry_point, BootInfo, BootloaderConfig, config::Mapping, info };
+use bootloader_api::{ entry_point, BootInfo, BootloaderConfig, config::Mapping };
+use x86_64::VirtAddr;
+
+extern crate alloc;
+use alloc::{ boxed::Box, string::String };
 
 #[macro_use]
 mod frame_buffer;
 mod interrupts;
 mod gdt;
 mod memory;
+mod allocator;
 // mod acpi;
 
 pub static BOOTLOADER_CONFIG: BootloaderConfig = {
@@ -31,14 +37,22 @@ fn start(boot_info: &'static mut BootInfo) -> ! {
     let framebuffer = boot_info.framebuffer.as_mut().unwrap().buffer_mut();
     let physical_memory_offset = boot_info.physical_memory_offset.into_option().unwrap();
     let memory_regions = &boot_info.memory_regions;
-
+    // Frame Buffer
     frame_buffer::init(framebuffer, framebuffer_info);
     println!("Frame buffer initialized.");
+    // Memory and Heap Allocator
+    let mut mapper = unsafe { memory::init(VirtAddr::new(physical_memory_offset)) };
     let mut frame_allocator = unsafe { memory::BootInfoFrameAllocator::init(memory_regions) };
     println!("Memory Frame Allocator initialized.");
+    allocator::init_heap(&mut mapper, &mut frame_allocator).expect("Failed to initialize memory heap");
+    println!("Memory Heap Allocator initialized.");
+
+    let x = Box::new(53);
+    println!("box balue is: {x}");
+    let st = String::from("Hello from heap");
+    println!("String value:  {st}");
     // acpi::init(rsdp_addr);
     // println!("Advanced Configuration and Power Interface (ACIP) initialized.");
-
 
     gdt::init();
     println!("Global Descriptor Table initialized.");
