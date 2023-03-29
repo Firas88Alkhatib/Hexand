@@ -8,7 +8,7 @@
 #![feature(abi_x86_interrupt)]
 
 use core::panic::PanicInfo;
-use bootloader_api::{ entry_point, BootInfo, BootloaderConfig, config::Mapping };
+use bootloader_api::{ entry_point, BootInfo, BootloaderConfig, config::Mapping, info };
 
 #[macro_use]
 mod frame_buffer;
@@ -30,10 +30,16 @@ fn start(boot_info: &'static mut BootInfo) -> ! {
     let framebuffer_info = boot_info.framebuffer.as_ref().unwrap().info();
     let framebuffer = boot_info.framebuffer.as_mut().unwrap().buffer_mut();
     let physical_memory_offset = boot_info.physical_memory_offset.into_option().unwrap();
+    let memory_regions = &boot_info.memory_regions;
+
     frame_buffer::init(framebuffer, framebuffer_info);
-    println!("Frame buffer initialized.");    
+    println!("Frame buffer initialized.");
+    let mut frame_allocator = unsafe { memory::BootInfoFrameAllocator::init(memory_regions) };
+    println!("Memory Frame Allocator initialized.");
     // acpi::init(rsdp_addr);
     // println!("Advanced Configuration and Power Interface (ACIP) initialized.");
+
+
     gdt::init();
     println!("Global Descriptor Table initialized.");
     interrupts::init_idt();
