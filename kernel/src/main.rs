@@ -43,11 +43,8 @@ fn start(boot_info: &'static mut BootInfo) -> ! {
     println!("Memory Management initialized.");
     allocator::init_heap();
     println!("Memory Heap Allocator initialized.");
-    let apic_info = acpi::init(rsdp_addr, physical_memory_offset);
+    let apic_info = acpi::init(rsdp_addr);
     println!("Advanced Configuration and Power Interface (ACIP) initialized.");
-
-    println!("\nAdvanced PIC info: {:?}\n", apic_info);
-
     gdt::init();
     println!("Global Descriptor Table initialized.");
     interrupts::init_idt();

@@ -35,6 +35,9 @@ impl MemoryManager {
             }
         }
     }
+    pub fn unmap(&mut self, page: Page) {
+        self.mapper.unmap(page).expect("Failed to unmap").1.flush();
+    }
 }
 unsafe impl Send for MemoryManager {}
 unsafe impl Sync for MemoryManager {}
@@ -45,6 +48,9 @@ pub fn range_map(start: VirtAddr, size: u64, flags: Option<PageTableFlags>) {
 pub fn identity_map(physical_address: u64, flags: Option<PageTableFlags>) {
     MEM_MGR.get().expect("Failed to get MEM_MGR").lock().identity_map(physical_address, flags);
 }
+pub fn unmap(page: Page) {
+    MEM_MGR.get().expect("Failed to get MEM_MGR").lock().unmap(page);
+}
 
 pub unsafe fn init(physical_memory_offset: u64, memory_regions: &'static MemoryRegions) {
     let physical_memory_offset = VirtAddr::new(physical_memory_offset);
@@ -54,7 +60,6 @@ pub unsafe fn init(physical_memory_offset: u64, memory_regions: &'static MemoryR
 
     MEM_MGR.init_once(move || Spinlock::new(MemoryManager { mapper, allocator }));
 }
-
 
 unsafe fn active_level_4_table(physical_memory_offset: VirtAddr) -> &'static mut PageTable {
     let (level_4_table_frame, _) = Cr3::read();
