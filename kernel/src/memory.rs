@@ -1,13 +1,60 @@
+use conquer_once::spin::OnceCell;
+use spinning_top::Spinlock;
 use x86_64::{ VirtAddr, PhysAddr };
-use x86_64::structures::paging::{ PageTable, PhysFrame, Size4KiB, FrameAllocator, OffsetPageTable };
+use x86_64::structures::paging::{ PageTable, PhysFrame, Size4KiB, FrameAllocator, OffsetPageTable, PageTableFlags, Mapper, Page };
 use x86_64::registers::control::Cr3;
 
 use bootloader_api::info::{ MemoryRegions, MemoryRegionKind };
 
-pub unsafe fn init(physical_memory_offset: VirtAddr) -> OffsetPageTable<'static> {
-    let level_4_table = active_level_4_table(physical_memory_offset);
-    OffsetPageTable::new(level_4_table, physical_memory_offset)
+static MEM_MGR: OnceCell<Spinlock<MemoryManager>> = OnceCell::uninit();
+
+pub struct MemoryManager {
+    mapper: OffsetPageTable<'static>,
+    allocator: BootInfoFrameAllocator,
 }
+
+impl MemoryManager {
+    pub fn identity_map(&mut self, physical_address: u64, flags: Option<PageTableFlags>) {
+        let flags = flags.unwrap_or_else(|| { PageTableFlags::PRESENT | PageTableFlags::WRITABLE | PageTableFlags::NO_EXECUTE });
+        let physical_address = PhysAddr::new(physical_address);
+        let physical_frame: PhysFrame = PhysFrame::containing_address(physical_address);
+        unsafe {
+            self.mapper.identity_map(physical_frame, flags, &mut self.allocator).expect("Failed to identity map").flush();
+        }
+    }
+    pub fn range_map(&mut self, start: VirtAddr, size: u64, flags: Option<PageTableFlags>) {
+        let end = start + size - 1u64;
+        let heap_start_page = Page::containing_address(start);
+        let heap_end_page = Page::containing_address(end);
+        let page_range = Page::range_inclusive(heap_start_page, heap_end_page);
+        for page in page_range {
+            let frame = self.allocator.allocate_frame().expect("Failed to allocate for range map");
+            let flags = flags.unwrap_or_else(|| { PageTableFlags::PRESENT | PageTableFlags::WRITABLE | PageTableFlags::NO_EXECUTE });
+            unsafe {
+                self.mapper.map_to(page, frame, flags, &mut self.allocator).expect("Failed to map range").flush();
+            }
+        }
+    }
+}
+unsafe impl Send for MemoryManager {}
+unsafe impl Sync for MemoryManager {}
+
+pub fn range_map(start: VirtAddr, size: u64, flags: Option<PageTableFlags>) {
+    MEM_MGR.get().expect("Failed to get MEM_MGR").lock().range_map(start, size, flags);
+}
+pub fn identity_map(physical_address: u64, flags: Option<PageTableFlags>) {
+    MEM_MGR.get().expect("Failed to get MEM_MGR").lock().identity_map(physical_address, flags);
+}
+
+pub unsafe fn init(physical_memory_offset: u64, memory_regions: &'static MemoryRegions) {
+    let physical_memory_offset = VirtAddr::new(physical_memory_offset);
+    let level_4_table = active_level_4_table(physical_memory_offset);
+    let mapper = OffsetPageTable::new(level_4_table, physical_memory_offset);
+    let allocator = BootInfoFrameAllocator::init(memory_regions);
+
+    MEM_MGR.init_once(move || Spinlock::new(MemoryManager { mapper, allocator }));
+}
+
 
 unsafe fn active_level_4_table(physical_memory_offset: VirtAddr) -> &'static mut PageTable {
     let (level_4_table_frame, _) = Cr3::read();
@@ -33,11 +80,6 @@ pub struct BootInfoFrameAllocator {
 }
 
 impl BootInfoFrameAllocator {
-    /// Create a FrameAllocator from the passed memory map.
-    ///
-    /// This function is unsafe because the caller must guarantee that the passed
-    /// memory map is valid. The main requirement is that all frames that are marked
-    /// as `USABLE` in it are really unused.
     pub unsafe fn init(memory_regions: &'static MemoryRegions) -> Self {
         BootInfoFrameAllocator {
             memory_regions,

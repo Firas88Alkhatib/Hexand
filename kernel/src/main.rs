@@ -10,8 +10,6 @@
 
 use core::panic::PanicInfo;
 use bootloader_api::{ entry_point, BootInfo, BootloaderConfig, config::Mapping };
-use x86_64::VirtAddr;
-
 extern crate alloc;
 
 #[macro_use]
@@ -39,11 +37,11 @@ fn start(boot_info: &'static mut BootInfo) -> ! {
     // Frame Buffer
     frame_buffer::init(framebuffer, framebuffer_info);
     println!("Frame buffer initialized.");
-    // Memory and Heap Allocator
-    let mut mapper = unsafe { memory::init(VirtAddr::new(physical_memory_offset)) };
-    let mut frame_allocator = unsafe { memory::BootInfoFrameAllocator::init(memory_regions) };
-    println!("Memory Frame Allocator initialized.");
-    allocator::init_heap(&mut mapper, &mut frame_allocator).expect("Failed to initialize memory heap");
+    unsafe {
+        memory::init(physical_memory_offset, memory_regions);
+    }
+    println!("Memory Management initialized.");
+    allocator::init_heap();
     println!("Memory Heap Allocator initialized.");
     let apic_info = acpi::init(rsdp_addr, physical_memory_offset);
     println!("Advanced Configuration and Power Interface (ACIP) initialized.");
