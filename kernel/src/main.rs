@@ -13,7 +13,6 @@ use bootloader_api::{ entry_point, BootInfo, BootloaderConfig, config::Mapping }
 use x86_64::VirtAddr;
 
 extern crate alloc;
-use alloc::{ boxed::Box, string::String };
 
 #[macro_use]
 mod frame_buffer;
@@ -21,7 +20,7 @@ mod interrupts;
 mod gdt;
 mod memory;
 mod allocator;
-// mod acpi;
+mod acpi;
 
 pub static BOOTLOADER_CONFIG: BootloaderConfig = {
     let mut config = BootloaderConfig::new_default();
@@ -32,7 +31,7 @@ pub static BOOTLOADER_CONFIG: BootloaderConfig = {
 entry_point!(start, config = &BOOTLOADER_CONFIG);
 
 fn start(boot_info: &'static mut BootInfo) -> ! {
-    // let rsdp_addr = boot_info.rsdp_addr.into_option().unwrap();
+    let rsdp_addr = boot_info.rsdp_addr.into_option().unwrap();
     let framebuffer_info = boot_info.framebuffer.as_ref().unwrap().info();
     let framebuffer = boot_info.framebuffer.as_mut().unwrap().buffer_mut();
     let physical_memory_offset = boot_info.physical_memory_offset.into_option().unwrap();
@@ -46,13 +45,10 @@ fn start(boot_info: &'static mut BootInfo) -> ! {
     println!("Memory Frame Allocator initialized.");
     allocator::init_heap(&mut mapper, &mut frame_allocator).expect("Failed to initialize memory heap");
     println!("Memory Heap Allocator initialized.");
+    let apic_info = acpi::init(rsdp_addr, physical_memory_offset);
+    println!("Advanced Configuration and Power Interface (ACIP) initialized.");
 
-    let x = Box::new(53);
-    println!("box balue is: {x}");
-    let st = String::from("Hello from heap");
-    println!("String value:  {st}");
-    // acpi::init(rsdp_addr);
-    // println!("Advanced Configuration and Power Interface (ACIP) initialized.");
+    println!("\nAdvanced PIC info: {:?}\n", apic_info);
 
     gdt::init();
     println!("Global Descriptor Table initialized.");
