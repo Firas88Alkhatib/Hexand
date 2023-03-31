@@ -137,7 +137,7 @@ impl FrameBufferWriter {
         self.x_pos += 8 + LETTER_SPACING;
     }
     fn shift(&mut self) {
-        let line_size = self.width() * ( CHAR_HEIGHT + LINE_SPACING )  * self.info.bytes_per_pixel;
+        let line_size = self.width() * (CHAR_HEIGHT + LINE_SPACING) * self.info.bytes_per_pixel;
         let buffer_length = self.framebuffer.len();
         let copy_size = buffer_length - line_size;
         unsafe {
@@ -215,7 +215,11 @@ macro_rules! println {
 #[doc(hidden)]
 pub fn _print(args: fmt::Arguments) {
     use core::fmt::Write;
-    WRITER.try_get().unwrap().lock().write_fmt(args).unwrap();
+    use x86_64::instructions::interrupts;
+    // FIX ME find another way to handle this
+    interrupts::without_interrupts(|| {
+        WRITER.try_get().unwrap().lock().write_fmt(args).unwrap();
+    });
 }
 
 // pub fn image() {

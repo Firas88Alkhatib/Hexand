@@ -34,23 +34,29 @@ fn start(boot_info: &'static mut BootInfo) -> ! {
     let framebuffer = boot_info.framebuffer.as_mut().unwrap().buffer_mut();
     let physical_memory_offset = boot_info.physical_memory_offset.into_option().unwrap();
     let memory_regions = &boot_info.memory_regions;
-    // Frame Buffer
+
     frame_buffer::init(framebuffer, framebuffer_info);
     println!("Frame buffer initialized.");
+
     unsafe {
         memory::init(physical_memory_offset, memory_regions);
     }
+    println!("Physical Memory Offset: {physical_memory_offset}");
     println!("Memory Management initialized.");
+
     allocator::init_heap();
     println!("Memory Heap Allocator initialized.");
+
     let apic_info = acpi::init(rsdp_addr);
     println!("Advanced Configuration and Power Interface (ACIP) initialized.");
+
     gdt::init();
     println!("Global Descriptor Table initialized.");
-    interrupts::init_idt();
-    println!("Interrupts initialized.");
-    println!("-----------------------------------------------");
 
+    interrupts::init_apic(apic_info);
+    println!("Interrupts initialized.");
+
+    println!("-----------------------------------------------");
     println!("Checkpoint continue!");
     loop {
         interrupts::hlt_loop();
@@ -61,6 +67,7 @@ fn start(boot_info: &'static mut BootInfo) -> ! {
 fn panic(info: &PanicInfo) -> ! {
     println!("{}", info);
     loop {
+        interrupts::hlt_loop();
     }
 }
 
