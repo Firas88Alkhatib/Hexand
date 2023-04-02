@@ -19,6 +19,9 @@ mod gdt;
 mod memory;
 mod allocator;
 mod acpi;
+mod task;
+
+use task::{ Task, executor::Executor, keyboard };
 
 pub static BOOTLOADER_CONFIG: BootloaderConfig = {
     let mut config = BootloaderConfig::new_default();
@@ -48,19 +51,19 @@ fn start(boot_info: &'static mut BootInfo) -> ! {
     println!("Memory Heap Allocator initialized.");
 
     let apic_info = acpi::init(rsdp_addr);
-    println!("Advanced Configuration and Power Interface (ACIP) initialized.");
+    println!("Advanced Configuration and Power Interface (ACPI) initialized.");
 
     gdt::init();
-    println!("Global Descriptor Table initialized.");
+    println!("Global Descriptor Table (GDT) initialized.");
 
     interrupts::init_apic(apic_info);
     println!("Interrupts initialized.");
-
-    println!("-----------------------------------------------");
-    println!("Checkpoint continue!");
-    loop {
-        interrupts::hlt_loop();
-    }
+    
+    let mut executor = Executor::new();
+    println!("Task Executor initialized");
+    println!("--------------------Start Executing Tasks--------------------");
+    executor.spawn(Task::new(keyboard::print_keypresses()));
+    executor.run();
 }
 
 #[panic_handler]

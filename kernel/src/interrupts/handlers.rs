@@ -1,11 +1,10 @@
 use x86_64::structures::idt::{ InterruptStackFrame, PageFaultErrorCode };
 use x86_64::registers::control::Cr2;
-use pc_keyboard::{ layouts, DecodedKey, HandleControl, Keyboard, ScancodeSet1 };
 use x86_64::instructions::port::Port;
 
 use crate::interrupts::hlt_loop;
 use super::end_of_interrupt;
-
+use crate::task::keyboard;
 
 /**
  * ------------------------------Exception Handlers------------------------------
@@ -38,23 +37,13 @@ pub extern "x86-interrupt" fn apic_error_handler(_stack_frame: InterruptStackFra
 }
 
 pub extern "x86-interrupt" fn timer_interrupt_handler(_stack_frame: InterruptStackFrame) {
-    print!(".");
+    // print!(".");
     end_of_interrupt();
 }
 pub extern "x86-interrupt" fn keyboard_interrupt_handler(_stack_frame: InterruptStackFrame) {
     let mut port = Port::new(0x60);
     let scancode: u8 = unsafe { port.read() };
-
-    let mut keyboard = Keyboard::new(ScancodeSet1::new(), layouts::Us104Key, HandleControl::Ignore);
-    if let Ok(Some(key_event)) = keyboard.add_byte(scancode) {
-        if let Some(key) = keyboard.process_keyevent(key_event) {
-            match key {
-                DecodedKey::Unicode(character) => print!("{}", character),
-                DecodedKey::RawKey(key) => print!("{:?}", key),
-            }
-        }
-    }
-
+    keyboard::add_scancode(scancode);
     end_of_interrupt();
 }
 

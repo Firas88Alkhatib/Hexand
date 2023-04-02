@@ -71,6 +71,7 @@ pub fn init_local_apic(local_apic_address: u64) {
         local_apic.enable();
     }
     LOCAL_APIC.init_once(move || Spinlock::new(local_apic));
+    println!("Local APIC initialized.")
 }
 
 pub unsafe fn init_io_apic(io_apic_address: u64) {
@@ -106,7 +107,7 @@ pub fn init_apic(apic_info: Apic) {
     init_local_apic(apic_info.local_apic_address);
     // We need to enable the interrupts after the APIC initialization
     for io_apic in apic_info.io_apics {
-        println!("Initializing IO APIC ID: {}", io_apic.id);
+        println!("Initializing I/O APIC ID: {}", io_apic.id);
         unsafe {
             init_io_apic(io_apic.address as u64);
         }
