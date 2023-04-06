@@ -1,7 +1,7 @@
 use bootloader_api::info::{ FrameBufferInfo, PixelFormat };
 use conquer_once::spin::OnceCell;
 use core::{ fmt, ptr };
-use spinning_top::{ lock_api::Mutex, RawSpinlock, Spinlock };
+use spinning_top::Spinlock;
 
 // supoort only psf1 currently
 // refer to https://en.wikipedia.org/wiki/PC_Screen_Font
@@ -197,8 +197,8 @@ impl fmt::Write for FrameBufferWriter {
 }
 pub static WRITER: OnceCell<Spinlock<FrameBufferWriter>> = OnceCell::uninit();
 
-pub fn init(framebuffer: &'static mut [u8], info: FrameBufferInfo) -> &Mutex<RawSpinlock, FrameBufferWriter> {
-    WRITER.get_or_init(move || Spinlock::new(FrameBufferWriter::new(framebuffer, info)))
+pub fn init(framebuffer: &'static mut [u8], info: FrameBufferInfo) {
+    WRITER.get_or_init(move || Spinlock::new(FrameBufferWriter::new(framebuffer, info)));
 }
 
 #[macro_export]

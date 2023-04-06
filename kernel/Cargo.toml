@@ -15,7 +15,8 @@ acpi = "4.1"
 linked_list_allocator = "0.10"
 x2apic = "0.4"
 pic8259 = "0.10"
-pc-keyboard = "0.7"
+pc-keyboard = "0.7.0"
+ps2-mouse = "0.1.4"
 crossbeam-queue = { version = "0.3", default-features = false, features = [
     "alloc",
 ] }

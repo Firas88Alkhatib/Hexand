@@ -52,13 +52,15 @@ pub fn unmap(page: Page) {
     MEM_MGR.get().expect("Failed to get MEM_MGR").lock().unmap(page);
 }
 
-pub unsafe fn init(physical_memory_offset: u64, memory_regions: &'static MemoryRegions) {
+pub fn init(physical_memory_offset: u64, memory_regions: &'static MemoryRegions) {
     let physical_memory_offset = VirtAddr::new(physical_memory_offset);
-    let level_4_table = active_level_4_table(physical_memory_offset);
-    let mapper = OffsetPageTable::new(level_4_table, physical_memory_offset);
-    let allocator = BootInfoFrameAllocator::init(memory_regions);
+    unsafe {
+        let level_4_table = active_level_4_table(physical_memory_offset);
+        let mapper = OffsetPageTable::new(level_4_table, physical_memory_offset);
+        let allocator = BootInfoFrameAllocator::init(memory_regions);
 
-    MEM_MGR.init_once(move || Spinlock::new(MemoryManager { mapper, allocator }));
+        MEM_MGR.init_once(move || Spinlock::new(MemoryManager { mapper, allocator }));
+    }
 }
 
 unsafe fn active_level_4_table(physical_memory_offset: VirtAddr) -> &'static mut PageTable {
@@ -92,9 +94,7 @@ impl BootInfoFrameAllocator {
         }
     }
     fn usable_frames(&self) -> impl Iterator<Item = PhysFrame> {
-        // get usable regions from memory map
-        let regions = self.memory_regions.iter();
-        let usable_regions = regions.filter(|r| r.kind == MemoryRegionKind::Usable);
+        let usable_regions = self.memory_regions.iter().filter(|r| r.kind == MemoryRegionKind::Usable);
         // map each region to its address range
         let addr_ranges = usable_regions.map(|r| r.start..r.end);
         // transform to an iterator of frame start addresses

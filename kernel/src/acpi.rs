@@ -8,7 +8,7 @@ pub struct ACPIHandler;
 
 impl AcpiHandler for ACPIHandler {
     unsafe fn map_physical_region<T>(&self, physical_address: usize, size: usize) -> PhysicalMapping<Self, T> {
-        let virtual_address = VirtAddr::new(physical_address as u64); // + self.physical_memory_offset);
+        let virtual_address = VirtAddr::new(physical_address as u64);
         memory::identity_map(physical_address as u64, None);
         PhysicalMapping::new(physical_address, NonNull::new(virtual_address.as_mut_ptr()).unwrap(), size, size, Self)
     }

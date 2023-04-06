@@ -21,7 +21,7 @@ mod allocator;
 mod acpi;
 mod task;
 
-use task::{ Task, executor::Executor, keyboard };
+use task::{ Task, executor::Executor, keyboard, mouse };
 
 pub static BOOTLOADER_CONFIG: BootloaderConfig = {
     let mut config = BootloaderConfig::new_default();
@@ -32,19 +32,16 @@ pub static BOOTLOADER_CONFIG: BootloaderConfig = {
 entry_point!(start, config = &BOOTLOADER_CONFIG);
 
 fn start(boot_info: &'static mut BootInfo) -> ! {
-    let rsdp_addr = boot_info.rsdp_addr.into_option().unwrap();
+    let rsdp_addr = boot_info.rsdp_addr.into_option().expect("Failed to get RSDP address");
+    let physical_memory_offset = boot_info.physical_memory_offset.into_option().expect("Failed to get Physical Memory Offset");
+    let memory_regions = &boot_info.memory_regions;
     let framebuffer_info = boot_info.framebuffer.as_ref().unwrap().info();
     let framebuffer = boot_info.framebuffer.as_mut().unwrap().buffer_mut();
-    let physical_memory_offset = boot_info.physical_memory_offset.into_option().unwrap();
-    let memory_regions = &boot_info.memory_regions;
 
     frame_buffer::init(framebuffer, framebuffer_info);
     println!("Frame buffer initialized.");
 
-    unsafe {
-        memory::init(physical_memory_offset, memory_regions);
-    }
-    println!("Physical Memory Offset: {physical_memory_offset}");
+    memory::init(physical_memory_offset, memory_regions);
     println!("Memory Management initialized.");
 
     allocator::init_heap();
@@ -58,11 +55,12 @@ fn start(boot_info: &'static mut BootInfo) -> ! {
 
     interrupts::init_apic(apic_info);
     println!("Interrupts initialized.");
-    
+
     let mut executor = Executor::new();
     println!("Task Executor initialized");
     println!("--------------------Start Executing Tasks--------------------");
     executor.spawn(Task::new(keyboard::print_keypresses()));
+    executor.spawn(Task::new(mouse::print_mouse_position()));
     executor.run();
 }
 

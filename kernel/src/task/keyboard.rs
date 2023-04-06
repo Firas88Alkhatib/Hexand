@@ -1,11 +1,13 @@
 use conquer_once::spin::OnceCell;
 use crossbeam_queue::ArrayQueue;
-use pc_keyboard::{ Keyboard, layouts, ScancodeSet1, HandleControl, DecodedKey, KeyCode };
+use pc_keyboard::{ Keyboard, layouts, ScancodeSet1, HandleControl, DecodedKey };
 use core::{ pin::Pin, task::{ Poll, Context } };
 use futures_util::{ stream::Stream, task::AtomicWaker, StreamExt };
 
 static SCANCODE_QUEUE: OnceCell<ArrayQueue<u8>> = OnceCell::uninit();
 static WAKER: AtomicWaker = AtomicWaker::new();
+
+static KEYBOARD_QUEUE_SIZE: usize = 100;
 
 pub struct ScancodeStream {
     _private: (),
@@ -13,7 +15,7 @@ pub struct ScancodeStream {
 
 impl ScancodeStream {
     pub fn new() -> Self {
-        SCANCODE_QUEUE.try_init_once(|| ArrayQueue::new(100)).expect("Scancode queue already initialized.");
+        SCANCODE_QUEUE.try_init_once(|| ArrayQueue::new(KEYBOARD_QUEUE_SIZE)).expect("Scancode queue already initialized.");
         ScancodeStream { _private: () }
     }
 }
@@ -58,12 +60,9 @@ pub async fn print_keypresses() {
         if let Ok(Some(key_event)) = keyboard.add_byte(scancode) {
             if let Some(key) = keyboard.process_keyevent(key_event) {
                 // FIX ME the backspace button returns a Unicode char instead of RawKey
-                // and no need for printing the RayKeys
                 match key {
                     DecodedKey::Unicode(character) => print!("{character}"),
-                    DecodedKey::RawKey(key) => {
-                        // print!("{:?}", key)
-                    }
+                    DecodedKey::RawKey(_key) => {}
                 }
             }
         }
