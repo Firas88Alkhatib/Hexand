@@ -13,5 +13,4 @@ Minimal Operating System Kernel written in Rust.
 
 <br>
 
-\
-*This project is inspired by [Philipp Oppermann](https://github.com/phil-opp) and his tutorial about writing an operating system using Rust https://os.phil-opp.com *.
+_This project is inspired by [Philipp Oppermann](https://github.com/phil-opp) and his tutorial about writing an operating system using Rust https://os.phil-opp.com ._
