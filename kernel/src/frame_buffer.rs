@@ -7,10 +7,7 @@ use spinning_top::Spinlock;
 // refer to https://en.wikipedia.org/wiki/PC_Screen_Font
 const FONT: &'static [u8] = include_bytes!("fonts/Uni2-Fixed16.psf");
 const HEADER_SIZE: usize = FONT[1] as usize;
-const FONT_HEADER: &[u8] = &FONT[0..HEADER_SIZE];
-const CHAR_SIZE: usize = FONT_HEADER[3] as usize;
-const CHARS_DATA: &[u8] = &FONT[HEADER_SIZE..512 * CHAR_SIZE];
-const UNICODE_TABLE: &[u8] = &FONT[HEADER_SIZE + CHARS_DATA.len()..];
+const CHAR_SIZE: usize = FONT[3] as usize;
 const CHAR_HEIGHT: usize = CHAR_SIZE;
 const CHAR_WIDTH: usize = 8 as usize; // in psf 1 the width is always 8
 
@@ -37,6 +34,8 @@ pub struct FrameBufferWriter {
     info: FrameBufferInfo,
     x_pos: usize,
     y_pos: usize,
+    chars_data: &'static [u8],
+    unicode_table: &'static [u8],
 }
 
 impl FrameBufferWriter {
@@ -46,6 +45,8 @@ impl FrameBufferWriter {
             info,
             x_pos: 0,
             y_pos: 0,
+            chars_data: &FONT[HEADER_SIZE..512 * CHAR_SIZE],
+            unicode_table: &FONT[HEADER_SIZE + 512 * CHAR_SIZE..],
         };
         frame_buffer_writer.clear();
         frame_buffer_writer
@@ -85,8 +86,8 @@ impl FrameBufferWriter {
         // 0xFFFF
         // all those unicode chars point to the same glyph in the font data
         // which could be for example the char 'A' depending on the font.
-        for i in 0..UNICODE_TABLE.len() / 2 {
-            let value = u16::from_le_bytes([UNICODE_TABLE[i * 2], UNICODE_TABLE[i * 2 + 1]]);
+        for i in 0..self.unicode_table.len() / 2 {
+            let value = u16::from_le_bytes([self.unicode_table[i * 2], self.unicode_table[i * 2 + 1]]);
             if value == 0xffff {
                 code_index += 1;
             } else if value == (char as u16) {
@@ -98,8 +99,8 @@ impl FrameBufferWriter {
     fn get_glyph_data(&mut self, char_code: char) -> Option<&'static [u8]> {
         let char_start = self.get_char_position(char_code)?;
         let char_end = char_start + CHAR_SIZE;
-        if char_end <= CHARS_DATA.len() {
-            Some(&CHARS_DATA[char_start..char_end])
+        if char_end <= self.chars_data.len() {
+            Some(&self.chars_data[char_start..char_end])
         } else {
             None
         }
