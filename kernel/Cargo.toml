@@ -6,12 +6,12 @@ authors = ["Firas Alkhtib <firas88alkhatib@gmail.com>"]
 
 [dependencies]
 bootloader_api = "0.11"
-spinning_top = "0.2"
-conquer-once = { version = "0.3", default-features = false }
+spinning_top = "0.3.0"
+conquer-once = { version = "0.4.0", default-features = false }
 x86_64 = "0.14"
-uart_16550 = "0.2"
+uart_16550 = "0.3.0"
 lazy_static = { version = "1.4", features = ["spin_no_std"] }
-acpi = "4.1"
+acpi = "4.1.1"
 linked_list_allocator = "0.10"
 x2apic = "0.4"
 pic8259 = "0.10"
